@@ -3,6 +3,7 @@ library(RJSONIO)
 
 Sys.setlocale('LC_ALL','C')
 setwd("~/hackathons/datachallenge2018")
+geocode.api.key = Sys.getenv("GEOCODE_API_DATACHALLENGE_2018")
 
 passengers <- read.csv("data/PassengerData.csv")
 ship_journey <- read.csv("data/ShipJourney.csv")
@@ -24,14 +25,29 @@ date.standardize <- function(raw_date) {
 }
 
 coords.from.address <- function(event.place.cols) {
-  address <- paste(event.place.cols[1,1], event.place.cols[1,2], event.place.cols[1,3])
+  if(event.place.cols[1,2] == "") {
+    if(event.place.cols[1,1] == "") {
+      # Country only
+      address <- event.place.cols[1,3]
+    } else {
+      # City, country
+      address <- paste(event.place.cols[1,1], event.place.cols[1,3], sep=", ")
+    }
+  } else {
+    if(event.place.cols[1,1] == "") {
+      # USA only
+      address <- paste(event.place.cols[1,2], event.place.cols[1,3], sep=", ")
+    } else {
+      address <- paste(event.place.cols[1,1], event.place.cols[1,2], event.place.cols[1,3], sep=", ")
+    }
+  }
   clean_address <- iconv(address, to='ASCII//TRANSLIT')
   return(geocodeAddress(clean_address))
 }
 
-geocodeAddress <- function(address) {
-  url <- "http://maps.google.com/maps/api/geocode/json?address="
-  url <- URLencode(paste(url, address, "&sensor=false", sep = ", "))
+geocode.address <- function(address) {
+  url <- "https://maps.google.com/maps/api/geocode/json?address="
+  url <- URLencode(paste(url, address, "&sensor=false&key=", geocode.api.key, sep = ""))
   x <- fromJSON(url, simplify = FALSE)
   if (x$status == "OK") {
     out <- c(x$results[[1]]$geometry$location$lng,
@@ -39,7 +55,6 @@ geocodeAddress <- function(address) {
   } else {
     out <- NA
   }
-  Sys.sleep(0.2)  # API only allows 5 requests per second
   out
 }
 
